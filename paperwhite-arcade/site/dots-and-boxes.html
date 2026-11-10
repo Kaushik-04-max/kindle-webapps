@@ -1,0 +1,133 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dots and Boxes - Paperwhite Arcade</title><style>*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:#fff;color:#000}
+h1,h2,.top h1{font-family:Georgia,"Times New Roman",serif}
+body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-weight:bold;font-size:20px;line-height:1.3;
+background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cg fill='none' stroke='%23000' stroke-opacity='.10' stroke-width='1'%3E%3Cpath d='M0 60L80 90L130 20L210 70L300 40M80 90L100 190L30 260L0 230M100 190L190 170L210 70M190 170L270 230L300 200M130 20L140 0M30 260L60 300M190 170L180 300M270 230L300 300'/%3E%3C/g%3E%3C/svg%3E")}
+a{color:#000}
+.wrap{max-width:720px;margin:0 auto;padding:10px 14px 24px}
+.top{border:3px solid #000;background:#fff;padding:8px 12px;margin-bottom:14px;box-shadow:4px 4px 0 #000}
+.top .badge{display:inline-block;border:2px solid #000;font-size:15px;letter-spacing:1px;padding:1px 8px;margin-left:8px;vertical-align:middle;text-transform:uppercase}
+.top a.back{display:inline-block;border:2px solid #000;padding:4px 12px;text-decoration:none;font-size:18px;margin-bottom:6px}
+.top h1{margin:2px 0 2px;font-size:30px;letter-spacing:1px}
+.top p{margin:0;font-size:17px}
+.panel{border:3px solid #000;background:#fff;padding:12px;margin-bottom:14px;box-shadow:4px 4px 0 #000}
+.row{display:block;margin:0 0 10px;overflow:hidden}
+.row .l{float:left;font-size:22px;padding-top:6px}
+.row .r{float:right}
+.btn{display:inline-block;border:2px solid #000;background:#fff;color:#000;font:inherit;font-size:20px;padding:7px 14px;margin:0 0 0 6px;cursor:pointer;min-width:58px;text-align:center}
+.btn.on{background:#000;color:#fff}
+.btn.big{font-size:24px;padding:12px 22px}
+.msg{border:2px solid #000;background:#fff;text-align:center;padding:8px;margin:10px 0;font-size:20px}
+.rule{border:0;border-top:2px solid #000;margin:10px 0}
+table.grid{border-collapse:collapse;margin:0 auto;background:#fff}
+table.grid td{border:2px solid #000;text-align:center;vertical-align:middle;padding:0;font-weight:bold;cursor:pointer;overflow:hidden}
+.center{text-align:center}
+.foot{text-align:center;font-size:15px;margin-top:10px}
+/* hub */
+.search{width:100%;font:inherit;font-size:22px;padding:10px;border:3px solid #000;margin:0 0 10px;background:#fff}
+.chips{margin:0 0 10px;text-align:center}
+.chip{display:inline-block;border:2px solid #000;background:#fff;font:inherit;font-size:19px;letter-spacing:1px;text-transform:uppercase;padding:7px 12px;margin:0 3px 7px;cursor:pointer}
+.chip.on{background:#000;color:#fff}
+.cards{text-align:center;font-size:0}
+.cards a.card{display:inline-block;vertical-align:top;width:31.4%;margin:0 .6% 10px;min-height:128px;border:3px solid #000;background:#fff;padding:6px 6px 8px;text-decoration:none;color:#000;text-align:center;box-shadow:4px 4px 0 #000;font-size:16px}
+.card .num{display:inline-block;float:left;border:2px solid #000;font-size:13px;padding:0 5px}
+.card .ic{clear:both;font-size:30px;line-height:1.2;padding-top:6px}
+.card h2{margin:4px 0 0;font-size:17px;line-height:1.15}
+.card p{display:none}
+.card .tag{display:none}
+.new{background:#000;color:#fff}
+</style></head><body><div class="wrap"><div class="top"><a class="back" href="index.html">&larr; All games</a><h1>Dots and Boxes</h1><p>Draw lines, close boxes, beat the AI.</p></div><div id="app"></div><div class="foot">Paperwhite Arcade</div></div><script>var KG = {
+  $: function (id) { return document.getElementById(id); },
+  el: function (tag, cls, text, parent) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined && text !== null) e.appendChild(document.createTextNode(text));
+    if (parent) parent.appendChild(e);
+    return e;
+  },
+  btn: function (text, fn, parent, cls) {
+    var b = KG.el('span', 'btn' + (cls ? ' ' + cls : ''), text, parent);
+    b.onclick = fn;
+    return b;
+  },
+  get: function (k, d) { try { var v = window.localStorage.getItem('kg_' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set: function (k, v) { try { window.localStorage.setItem('kg_' + k, JSON.stringify(v)); } catch (e) {} },
+  rand: function (n) { return Math.floor(Math.random() * n); },
+  shuffle: function (a) { for (var i = a.length - 1; i > 0; i--) { var j = KG.rand(i + 1), t = a[i]; a[i] = a[j]; a[j] = t; } return a; },
+  width: function (max) {
+    var w = window.innerWidth || document.documentElement.clientWidth || 600;
+    return Math.min(w - 44, max || 640);
+  },
+  clear: function (e) { while (e.firstChild) e.removeChild(e.firstChild); },
+  setOn: function (list, i) { for (var k = 0; k < list.length; k++) list[k].className = 'btn' + (k === i ? ' on' : ''); },
+  // grid table: returns {t:table, c:[[td]]}
+  grid: function (rows, cols, size, parent, onTap) {
+    var t = KG.el('table', 'grid', null, parent), c = [], r, k;
+    for (r = 0; r < rows; r++) {
+      var tr = document.createElement('tr'); c[r] = [];
+      for (k = 0; k < cols; k++) {
+        var td = document.createElement('td');
+        td.style.width = size + 'px'; td.style.height = size + 'px';
+        td.style.fontSize = Math.floor(size * 0.55) + 'px';
+        (function (rr, kk) { td.onclick = function () { onTap(rr, kk); }; })(r, k);
+        tr.appendChild(td); c[r][k] = td;
+      }
+      t.appendChild(tr);
+    }
+    return { t: t, c: c };
+  },
+  suit: function (s, px) {
+    var P = { H: 'M10 18C2 12 1 8 1 5.5A4.5 4.5 0 0 1 10 4A4.5 4.5 0 0 1 19 5.5C19 8 18 12 10 18Z', D: 'M10 1L18 10L10 19L2 10Z', S: 'M10 1C16 7 19 10 19 13A4.5 4.5 0 0 1 11 15.5L13 19H7L9 15.5A4.5 4.5 0 0 1 1 13C1 10 4 7 10 1Z', C: 'M10 0.5a4.5 4.5 0 1 0 0.01 0ZM4.5 7.5a4.5 4.5 0 1 0 0.01 0ZM15.5 7.5a4.5 4.5 0 1 0 0.01 0ZM9 10L7.5 19H12.5L11 10Z' };
+    var red = (s === 'H' || s === 'D');
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="' + px + '" height="' + px + '" viewBox="0 0 20 20"><path d="' + P[s] + '" fill="' + (red ? '#fff' : '#000') + '" stroke="#000" stroke-width="' + (red ? 1.6 : 0.5) + '"/></svg>';
+  },
+  card: function (rank, s, w) {
+    var h = Math.floor(w * 1.4);
+    return '<div style="display:inline-block;vertical-align:top;margin:3px;width:' + w + 'px;height:' + h + 'px;border:3px solid #000;background:#fff;text-align:center;line-height:1"><div style="font-size:' + Math.floor(w * 0.36) + 'px;margin-top:4px">' + rank + '</div><div style="margin-top:' + Math.floor(w * 0.08) + 'px">' + KG.suit(s, Math.floor(w * 0.5)) + '</div></div>';
+  },
+  cardBack: function (w) {
+    var h = Math.floor(w * 1.4);
+    return '<div style="display:inline-block;vertical-align:top;margin:3px;width:' + w + 'px;height:' + h + 'px;border:3px solid #000;background:#000;color:#fff;text-align:center;line-height:' + h + 'px;font-size:' + Math.floor(w * 0.5) + 'px">?</div>';
+  },
+  sys: function (name, def, parent, opts, onPick) {
+    // option row helper: opts array of labels; remembers choice
+    var cur = KG.get(name, def), btns = [], i;
+    for (i = 0; i < opts.length; i++) (function (i) {
+      btns[i] = KG.btn(opts[i], function () { KG.set(name, i); KG.setOn(btns, i); onPick(i); }, parent);
+    })(i);
+    KG.setOn(btns, cur);
+    return cur;
+  }
+};
+</script><script>var app=KG.$("app");var B = 4, lvl = KG.get('db_l', 1), H, V, own, turn, over, sc = [0, 0], note = '';
+var panel = KG.el('div', 'panel', null, app);
+var r1 = KG.el('div', 'row', null, panel); KG.el('div', 'l', 'AI level', r1); var rr1 = KG.el('div', 'r', null, r1);
+var bl = [KG.btn('Easy', function () { lvl = 0; KG.set('db_l', 0); reset(); }, rr1), KG.btn('Normal', function () { lvl = 1; KG.set('db_l', 1); reset(); }, rr1)];
+var msg = KG.el('div', 'msg', '', panel), box = KG.el('div', 'center', null, panel), nb = KG.el('div', 'center', null, panel); nb.style.marginTop = '10px'; KG.btn('New game', reset, nb, 'on');
+KG.el('div', 'foot', 'Tap a gap between two dots to draw a line. Close a box to claim it (Y = you, A = AI) and move again.', panel);
+function reset(){ var i, j; H = []; V = []; own = []; for (i = 0; i <= B; i++) { H[i] = []; V[i] = []; for (j = 0; j <= B; j++) { H[i][j] = 0; V[i][j] = 0; } } for (i = 0; i < B; i++) { own[i] = []; for (j = 0; j < B; j++) own[i][j] = ''; } sc = [0, 0]; turn = 0; over = ''; note = ''; KG.setOn(bl, lvl); draw(); }
+function sides(i, j){ return H[i][j] + H[i + 1][j] + V[i][j] + V[i][j + 1]; }
+function claim(who){ var n = 0, i, j; for (i = 0; i < B; i++) for (j = 0; j < B; j++) if (!own[i][j] && sides(i, j) === 4) { own[i][j] = who ? 'A' : 'Y'; sc[who]++; n++; } return n; }
+function line(t, i, j){ if (t === 'H') H[i][j] = 1; else V[i][j] = 1; var n = claim(turn); if (sc[0] + sc[1] === B * B) { over = sc[0] > sc[1] ? 'You win ' + sc[0] + ' to ' + sc[1] + '!' : sc[0] < sc[1] ? 'AI wins ' + sc[1] + ' to ' + sc[0] + '.' : 'Draw!'; draw(); return; } if (!n) turn = 1 - turn; draw(); if (turn === 1) setTimeout(aiGo, 400); }
+function tap(t, i, j){ if (over || turn !== 0) return; if ((t === 'H' ? H : V)[i][j]) return; line(t, i, j); }
+function aiGo(){
+  var all = [], i, j, take = [], safe = [], m;
+  for (i = 0; i <= B; i++) for (j = 0; j < B; j++) if (!H[i][j]) all.push(['H', i, j]);
+  for (i = 0; i < B; i++) for (j = 0; j <= B; j++) if (!V[i][j]) all.push(['V', i, j]);
+  for (var k = 0; k < all.length; k++) { var a = all[k]; var cs = a[0] === 'H' ? [[a[1] - 1, a[2]], [a[1], a[2]]] : [[a[1], a[2] - 1], [a[1], a[2]]], gives = false, takes = false;
+    for (var z = 0; z < 2; z++) { var bi = cs[z][0], bj = cs[z][1]; if (bi < 0 || bi >= B || bj < 0 || bj >= B) continue; var s = sides(bi, bj); if (s === 3) takes = true; if (s === 2) gives = true; }
+    if (takes) take.push(a); else if (!gives) safe.push(a); }
+  if (lvl === 1 && take.length) m = take[KG.rand(take.length)]; else if (lvl === 0 && take.length && KG.rand(3)) m = take[0]; else if (safe.length) m = safe[KG.rand(safe.length)]; else m = all[KG.rand(all.length)];
+  line(m[0], m[1], m[2]);
+}
+function draw(){
+  var d = 22, w = Math.floor((KG.width(640) - d * (B + 1)) / B), h = '<table style="margin:0 auto;border-collapse:collapse">', i, j;
+  for (i = 0; i <= B; i++) {
+    h += '<tr>'; for (j = 0; j <= B; j++) { h += '<td style="width:' + d + 'px;height:' + d + 'px;padding:0"><div style="width:' + d + 'px;height:' + d + 'px;border-radius:50%;background:#000"></div></td>'; if (j < B) h += '<td id="h' + i + '_' + j + '" style="width:' + w + 'px;height:' + d + 'px;padding:0;cursor:pointer"><div style="margin:' + (H[i][j] ? '0' : '8px 0') + ';height:' + (H[i][j] ? '22px' : '6px') + ';background:' + (H[i][j] ? '#000' : '#bbb') + '"></div></td>'; } h += '</tr>';
+    if (i < B) { h += '<tr>'; for (j = 0; j <= B; j++) { h += '<td id="v' + i + '_' + j + '" style="width:' + d + 'px;height:' + w + 'px;padding:0;cursor:pointer"><div style="margin:0 ' + (V[i][j] ? '0' : '8px') + ';width:' + (V[i][j] ? '22px' : '6px') + ';height:' + w + 'px;background:' + (V[i][j] ? '#000' : '#bbb') + '"></div></td>'; if (j < B) h += '<td style="text-align:center;font-size:' + Math.floor(w * 0.5) + 'px;' + (own[i][j] === 'Y' ? 'background:#ddd' : own[i][j] === 'A' ? 'background:#999' : '') + '">' + own[i][j] + '</td>'; } h += '</tr>'; } }
+  box.innerHTML = h + '</table>';
+  for (i = 0; i <= B; i++) for (j = 0; j <= B; j++) { (function (a, b) { var e = KG.$('h' + a + '_' + b); if (e) e.onclick = function () { tap('H', a, b); }; var f = KG.$('v' + a + '_' + b); if (f) f.onclick = function () { tap('V', a, b); }; })(i, j); }
+  KG.clear(msg); msg.appendChild(document.createTextNode(over || (turn === 0 ? 'Your move.' : 'AI thinking...') + '   You ' + sc[0] + ' - AI ' + sc[1]));
+}
+reset();
+</script></body></html>

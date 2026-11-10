@@ -1,0 +1,34 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Worker test harness</title>
+<body>Loading...
+<script type="module">
+// Local test harness: runs worker.js inside the browser, since Node is not installed.
+// Usage: test.html?path=/lyrics&mode=letter&mock_title=Yellow&mock_artist=Coldplay
+import worker from './worker.js';
+
+const env = { MOCK: '1' };
+const q = new URLSearchParams(location.search);
+const path = q.get('path') || '/';
+
+// Route the page's XMLHttpRequest calls to the worker instead of the network.
+window.XMLHttpRequest = function () {
+  const x = this;
+  x.readyState = 0;
+  x.open = (method, url) => { x._url = url; };
+  x.send = async () => {
+    const res = await worker.fetch(new Request(location.origin + x._url), env);
+    x.status = res.status;
+    x.responseText = await res.text();
+    x.readyState = 4;
+    x.onreadystatechange && x.onreadystatechange();
+  };
+};
+
+const res = await worker.fetch(new Request(location.origin + path + location.search), env);
+const html = await res.text();
+document.open();
+document.write(html);
+document.close();
+</script>
+</body>

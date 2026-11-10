@@ -1,0 +1,181 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Checkers - Paperwhite Arcade</title><style>*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:#fff;color:#000}
+h1,h2,.top h1{font-family:Georgia,"Times New Roman",serif}
+body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-weight:bold;font-size:20px;line-height:1.3;
+background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cg fill='none' stroke='%23000' stroke-opacity='.10' stroke-width='1'%3E%3Cpath d='M0 60L80 90L130 20L210 70L300 40M80 90L100 190L30 260L0 230M100 190L190 170L210 70M190 170L270 230L300 200M130 20L140 0M30 260L60 300M190 170L180 300M270 230L300 300'/%3E%3C/g%3E%3C/svg%3E")}
+a{color:#000}
+.wrap{max-width:720px;margin:0 auto;padding:10px 14px 24px}
+.top{border:3px solid #000;background:#fff;padding:8px 12px;margin-bottom:14px;box-shadow:4px 4px 0 #000}
+.top .badge{display:inline-block;border:2px solid #000;font-size:15px;letter-spacing:1px;padding:1px 8px;margin-left:8px;vertical-align:middle;text-transform:uppercase}
+.top a.back{display:inline-block;border:2px solid #000;padding:4px 12px;text-decoration:none;font-size:18px;margin-bottom:6px}
+.top h1{margin:2px 0 2px;font-size:30px;letter-spacing:1px}
+.top p{margin:0;font-size:17px}
+.panel{border:3px solid #000;background:#fff;padding:12px;margin-bottom:14px;box-shadow:4px 4px 0 #000}
+.row{display:block;margin:0 0 10px;overflow:hidden}
+.row .l{float:left;font-size:22px;padding-top:6px}
+.row .r{float:right}
+.btn{display:inline-block;border:2px solid #000;background:#fff;color:#000;font:inherit;font-size:20px;padding:7px 14px;margin:0 0 0 6px;cursor:pointer;min-width:58px;text-align:center}
+.btn.on{background:#000;color:#fff}
+.btn.big{font-size:24px;padding:12px 22px}
+.msg{border:2px solid #000;background:#fff;text-align:center;padding:8px;margin:10px 0;font-size:20px}
+.rule{border:0;border-top:2px solid #000;margin:10px 0}
+table.grid{border-collapse:collapse;margin:0 auto;background:#fff}
+table.grid td{border:2px solid #000;text-align:center;vertical-align:middle;padding:0;font-weight:bold;cursor:pointer;overflow:hidden}
+.center{text-align:center}
+.foot{text-align:center;font-size:15px;margin-top:10px}
+/* hub */
+.search{width:100%;font:inherit;font-size:22px;padding:10px;border:3px solid #000;margin:0 0 10px;background:#fff}
+.chips{margin:0 0 10px;text-align:center}
+.chip{display:inline-block;border:2px solid #000;background:#fff;font:inherit;font-size:19px;letter-spacing:1px;text-transform:uppercase;padding:7px 12px;margin:0 3px 7px;cursor:pointer}
+.chip.on{background:#000;color:#fff}
+.cards{text-align:center;font-size:0}
+.cards a.card{display:inline-block;vertical-align:top;width:31.4%;margin:0 .6% 10px;min-height:128px;border:3px solid #000;background:#fff;padding:6px 6px 8px;text-decoration:none;color:#000;text-align:center;box-shadow:4px 4px 0 #000;font-size:16px}
+.card .num{display:inline-block;float:left;border:2px solid #000;font-size:13px;padding:0 5px}
+.card .ic{clear:both;font-size:30px;line-height:1.2;padding-top:6px}
+.card h2{margin:4px 0 0;font-size:17px;line-height:1.15}
+.card p{display:none}
+.card .tag{display:none}
+.new{background:#000;color:#fff}
+</style></head><body><div class="wrap"><div class="top"><a class="back" href="index.html">&larr; All games</a><h1>Checkers</h1><p>Forced captures and kings. 3 AI levels.</p></div><div id="app"></div><div class="foot">Paperwhite Arcade</div></div><script>var KG = {
+  $: function (id) { return document.getElementById(id); },
+  el: function (tag, cls, text, parent) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined && text !== null) e.appendChild(document.createTextNode(text));
+    if (parent) parent.appendChild(e);
+    return e;
+  },
+  btn: function (text, fn, parent, cls) {
+    var b = KG.el('span', 'btn' + (cls ? ' ' + cls : ''), text, parent);
+    b.onclick = fn;
+    return b;
+  },
+  get: function (k, d) { try { var v = window.localStorage.getItem('kg_' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set: function (k, v) { try { window.localStorage.setItem('kg_' + k, JSON.stringify(v)); } catch (e) {} },
+  rand: function (n) { return Math.floor(Math.random() * n); },
+  shuffle: function (a) { for (var i = a.length - 1; i > 0; i--) { var j = KG.rand(i + 1), t = a[i]; a[i] = a[j]; a[j] = t; } return a; },
+  width: function (max) {
+    var w = window.innerWidth || document.documentElement.clientWidth || 600;
+    return Math.min(w - 44, max || 640);
+  },
+  clear: function (e) { while (e.firstChild) e.removeChild(e.firstChild); },
+  setOn: function (list, i) { for (var k = 0; k < list.length; k++) list[k].className = 'btn' + (k === i ? ' on' : ''); },
+  // grid table: returns {t:table, c:[[td]]}
+  grid: function (rows, cols, size, parent, onTap) {
+    var t = KG.el('table', 'grid', null, parent), c = [], r, k;
+    for (r = 0; r < rows; r++) {
+      var tr = document.createElement('tr'); c[r] = [];
+      for (k = 0; k < cols; k++) {
+        var td = document.createElement('td');
+        td.style.width = size + 'px'; td.style.height = size + 'px';
+        td.style.fontSize = Math.floor(size * 0.55) + 'px';
+        (function (rr, kk) { td.onclick = function () { onTap(rr, kk); }; })(r, k);
+        tr.appendChild(td); c[r][k] = td;
+      }
+      t.appendChild(tr);
+    }
+    return { t: t, c: c };
+  },
+  suit: function (s, px) {
+    var P = { H: 'M10 18C2 12 1 8 1 5.5A4.5 4.5 0 0 1 10 4A4.5 4.5 0 0 1 19 5.5C19 8 18 12 10 18Z', D: 'M10 1L18 10L10 19L2 10Z', S: 'M10 1C16 7 19 10 19 13A4.5 4.5 0 0 1 11 15.5L13 19H7L9 15.5A4.5 4.5 0 0 1 1 13C1 10 4 7 10 1Z', C: 'M10 0.5a4.5 4.5 0 1 0 0.01 0ZM4.5 7.5a4.5 4.5 0 1 0 0.01 0ZM15.5 7.5a4.5 4.5 0 1 0 0.01 0ZM9 10L7.5 19H12.5L11 10Z' };
+    var red = (s === 'H' || s === 'D');
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="' + px + '" height="' + px + '" viewBox="0 0 20 20"><path d="' + P[s] + '" fill="' + (red ? '#fff' : '#000') + '" stroke="#000" stroke-width="' + (red ? 1.6 : 0.5) + '"/></svg>';
+  },
+  card: function (rank, s, w) {
+    var h = Math.floor(w * 1.4);
+    return '<div style="display:inline-block;vertical-align:top;margin:3px;width:' + w + 'px;height:' + h + 'px;border:3px solid #000;background:#fff;text-align:center;line-height:1"><div style="font-size:' + Math.floor(w * 0.36) + 'px;margin-top:4px">' + rank + '</div><div style="margin-top:' + Math.floor(w * 0.08) + 'px">' + KG.suit(s, Math.floor(w * 0.5)) + '</div></div>';
+  },
+  cardBack: function (w) {
+    var h = Math.floor(w * 1.4);
+    return '<div style="display:inline-block;vertical-align:top;margin:3px;width:' + w + 'px;height:' + h + 'px;border:3px solid #000;background:#000;color:#fff;text-align:center;line-height:' + h + 'px;font-size:' + Math.floor(w * 0.5) + 'px">?</div>';
+  },
+  sys: function (name, def, parent, opts, onPick) {
+    // option row helper: opts array of labels; remembers choice
+    var cur = KG.get(name, def), btns = [], i;
+    for (i = 0; i < opts.length; i++) (function (i) {
+      btns[i] = KG.btn(opts[i], function () { KG.set(name, i); KG.setOn(btns, i); onPick(i); }, parent);
+    })(i);
+    KG.setOn(btns, cur);
+    return cur;
+  }
+};
+</script><script>var app=KG.$("app");var lvl = KG.get('ck_l', 1), b, turn, over, sel = null, cells, sz, note = '';
+var panel = KG.el('div', 'panel', null, app);
+var r1 = KG.el('div', 'row', null, panel); KG.el('div', 'l', 'AI level', r1); var rr1 = KG.el('div', 'r', null, r1);
+var bl = [KG.btn('Easy', function () { lvl = 0; KG.set('ck_l', 0); reset(); }, rr1), KG.btn('Normal', function () { lvl = 1; KG.set('ck_l', 1); reset(); }, rr1), KG.btn('Hard', function () { lvl = 2; KG.set('ck_l', 2); reset(); }, rr1)];
+var msg = KG.el('div', 'msg', '', panel), box = KG.el('div', 'center', null, panel), nb = KG.el('div', 'center', null, panel); nb.style.marginTop = '10px';
+KG.btn('New game', reset, nb, 'on');
+KG.el('div', 'foot', 'You are solid black and move up. Captures are compulsory. Reach the far row to become a king (K).', panel);
+function inb(r, c){ return r >= 0 && r < 8 && c >= 0 && c < 8; }
+function cp(bd){ var o = [], i; for (i = 0; i < 8; i++) o.push(bd[i].slice()); return o; }
+function seqFrom(bd, r0, c0, s){
+  var out = [], p = bd[r0][c0], endRow = s === 1 ? 0 : 7;
+  bd[r0][c0] = 0;
+  function dfs(r, c, king, path, caps){
+    var dirs = king ? [[-1,-1],[-1,1],[1,-1],[1,1]] : (s === 1 ? [[-1,-1],[-1,1]] : [[1,-1],[1,1]]), i, any = false;
+    for (i = 0; i < dirs.length; i++) {
+      var dr = dirs[i][0], dc = dirs[i][1], mr = r + dr, mc = c + dc, tr = r + 2 * dr, tc = c + 2 * dc;
+      if (!inb(tr, tc) || bd[mr][mc] * s >= 0 || bd[tr][tc] || caps.indexOf(mr * 8 + mc) >= 0) continue;
+      any = true; var nk = king || tr === endRow, np = path.concat([[tr, tc]]), nc = caps.concat([mr * 8 + mc]);
+      if (nk && !king) out.push({ path: np, caps: nc }); else dfs(tr, tc, nk, np, nc);
+    }
+    if (!any && path.length > 1) out.push({ path: path, caps: caps });
+  }
+  dfs(r0, c0, Math.abs(p) === 2, [[r0, c0]], []);
+  bd[r0][c0] = p; return out;
+}
+function allMoves(bd, s){
+  var jumps = [], simple = [], r, c, p, i;
+  for (r = 0; r < 8; r++) for (c = 0; c < 8; c++) { p = bd[r][c]; if (p * s <= 0) continue;
+    jumps = jumps.concat(seqFrom(bd, r, c, s));
+    var dirs = Math.abs(p) === 2 ? [[-1,-1],[-1,1],[1,-1],[1,1]] : (s === 1 ? [[-1,-1],[-1,1]] : [[1,-1],[1,1]]);
+    for (i = 0; i < dirs.length; i++) { var tr = r + dirs[i][0], tc = c + dirs[i][1]; if (inb(tr, tc) && !bd[tr][tc]) simple.push({ path: [[r, c], [tr, tc]], caps: [] }); } }
+  return jumps.length ? jumps : simple;
+}
+function doMove(bd, m, s){
+  var f = m.path[0], t = m.path[m.path.length - 1], p = bd[f[0]][f[1]], i;
+  bd[f[0]][f[1]] = 0; for (i = 0; i < m.caps.length; i++) bd[(m.caps[i] / 8) | 0][m.caps[i] % 8] = 0;
+  if (t[0] === (s === 1 ? 0 : 7)) p = 2 * s; bd[t[0]][t[1]] = p;
+}
+function ev(bd){ var s = 0, r, c, p; for (r = 0; r < 8; r++) for (c = 0; c < 8; c++) { p = bd[r][c]; if (!p) continue; var v = Math.abs(p) === 2 ? 170 : 100 + (p < 0 ? r : 7 - r) * 4; s += p < 0 ? v : -v; } return s; }
+function mm(bd, d, a, bt, s){
+  var ms = allMoves(bd, s); if (!ms.length) return s === -1 ? -9000 - d : 9000 + d; if (d === 0) return ev(bd);
+  var i, v, nb;
+  for (i = 0; i < ms.length; i++) { nb = cp(bd); doMove(nb, ms[i], s); v = mm(nb, d - 1, a, bt, -s); if (s === -1) { if (v > a) a = v; } else if (v < bt) bt = v; if (a >= bt) break; }
+  return s === -1 ? a : bt;
+}
+function reset(){
+  var r, c; b = []; for (r = 0; r < 8; r++) { b[r] = []; for (c = 0; c < 8; c++) b[r][c] = ((r + c) % 2 === 1) ? (r < 3 ? -1 : r > 4 ? 1 : 0) : 0; }
+  turn = 1; over = ''; sel = null; note = ''; KG.setOn(bl, lvl); sz = Math.floor(KG.width(640) / 8); KG.clear(box); cells = KG.grid(8, 8, sz, box, tap); draw();
+}
+function tap(r, c){
+  if (over || turn !== 1) return;
+  var ms = allMoves(b, 1), i, p = b[r][c];
+  if (sel) for (i = 0; i < ms.length; i++) { var m = ms[i], e = m.path[m.path.length - 1]; if (m.path[0][0] === sel[0] && m.path[0][1] === sel[1] && e[0] === r && e[1] === c) { doMove(b, m, 1); sel = null; turn = -1; note = ''; after(); return; } }
+  sel = null; note = '';
+  if (p * 1 > 0) { for (i = 0; i < ms.length; i++) if (ms[i].path[0][0] === r && ms[i].path[0][1] === c) { sel = [r, c]; break; } if (!sel) note = ms.length && ms[0].caps.length ? 'You must make a capture.' : 'That piece cannot move.'; }
+  draw();
+}
+function after(){
+  var ms = allMoves(b, turn); if (!ms.length) { over = turn === 1 ? 'AI wins.' : 'You win!'; draw(); return; }
+  draw(); if (turn === -1) setTimeout(aiGo, 300);
+}
+function aiGo(){
+  var ms = allMoves(b, -1), best = null, bv = -99999, i, v, nb, d = [1, 4, 6][lvl];
+  for (i = 0; i < ms.length; i++) { nb = cp(b); doMove(nb, ms[i], -1); v = mm(nb, d - 1, -99999, 99999, 1) + (lvl === 0 ? KG.rand(150) : KG.rand(3)); if (v > bv) { bv = v; best = ms[i]; } }
+  doMove(b, best, -1); turn = 1; after();
+}
+function draw(){
+  var r, c, t, p, d = Math.floor(sz * 0.72), dests = [], i, ms = turn === 1 ? allMoves(b, 1) : [];
+  if (sel) for (i = 0; i < ms.length; i++) if (ms[i].path[0][0] === sel[0] && ms[i].path[0][1] === sel[1]) dests.push(ms[i].path[ms[i].path.length - 1]);
+  for (r = 0; r < 8; r++) for (c = 0; c < 8; c++) {
+    t = cells.c[r][c]; p = b[r][c]; t.style.background = (r + c) % 2 ? '#bbb' : '#fff'; var h = '', kk = Math.abs(p) === 2 ? 'K' : '', isSel = sel && sel[0] === r && sel[1] === c;
+    if (p > 0) h = '<div style="margin:auto;width:' + d + 'px;height:' + d + 'px;border-radius:50%;background:#000;color:#fff;line-height:' + d + 'px;font-size:' + Math.floor(d * 0.55) + 'px;' + (isSel ? 'border:5px double #fff;box-shadow:0 0 0 4px #000;' : '') + '">' + kk + '</div>';
+    else if (p < 0) h = '<div style="margin:auto;width:' + d + 'px;height:' + d + 'px;border-radius:50%;background:#fff;color:#000;border:4px solid #000;line-height:' + (d - 8) + 'px;font-size:' + Math.floor(d * 0.55) + 'px">' + kk + '</div>';
+    t.innerHTML = h;
+  }
+  for (i = 0; i < dests.length; i++) cells.c[dests[i][0]][dests[i][1]].innerHTML = '<div style="margin:auto;width:' + Math.floor(sz * 0.3) + 'px;height:' + Math.floor(sz * 0.3) + 'px;border-radius:50%;background:#000"></div>';
+  KG.clear(msg); msg.appendChild(document.createTextNode(over || note || (turn === 1 ? 'Your move.' : 'AI thinking...')));
+}
+reset();
+</script></body></html>

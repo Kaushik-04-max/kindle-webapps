@@ -1,0 +1,143 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Minesweeper - Paperwhite Arcade</title><style>*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:#fff;color:#000}
+h1,h2,.top h1{font-family:Georgia,"Times New Roman",serif}
+body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-weight:bold;font-size:20px;line-height:1.3;
+background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cg fill='none' stroke='%23000' stroke-opacity='.10' stroke-width='1'%3E%3Cpath d='M0 60L80 90L130 20L210 70L300 40M80 90L100 190L30 260L0 230M100 190L190 170L210 70M190 170L270 230L300 200M130 20L140 0M30 260L60 300M190 170L180 300M270 230L300 300'/%3E%3C/g%3E%3C/svg%3E")}
+a{color:#000}
+.wrap{max-width:720px;margin:0 auto;padding:10px 14px 24px}
+.top{border:3px solid #000;background:#fff;padding:8px 12px;margin-bottom:14px;box-shadow:4px 4px 0 #000}
+.top .badge{display:inline-block;border:2px solid #000;font-size:15px;letter-spacing:1px;padding:1px 8px;margin-left:8px;vertical-align:middle;text-transform:uppercase}
+.top a.back{display:inline-block;border:2px solid #000;padding:4px 12px;text-decoration:none;font-size:18px;margin-bottom:6px}
+.top h1{margin:2px 0 2px;font-size:30px;letter-spacing:1px}
+.top p{margin:0;font-size:17px}
+.panel{border:3px solid #000;background:#fff;padding:12px;margin-bottom:14px;box-shadow:4px 4px 0 #000}
+.row{display:block;margin:0 0 10px;overflow:hidden}
+.row .l{float:left;font-size:22px;padding-top:6px}
+.row .r{float:right}
+.btn{display:inline-block;border:2px solid #000;background:#fff;color:#000;font:inherit;font-size:20px;padding:7px 14px;margin:0 0 0 6px;cursor:pointer;min-width:58px;text-align:center}
+.btn.on{background:#000;color:#fff}
+.btn.big{font-size:24px;padding:12px 22px}
+.msg{border:2px solid #000;background:#fff;text-align:center;padding:8px;margin:10px 0;font-size:20px}
+.rule{border:0;border-top:2px solid #000;margin:10px 0}
+table.grid{border-collapse:collapse;margin:0 auto;background:#fff}
+table.grid td{border:2px solid #000;text-align:center;vertical-align:middle;padding:0;font-weight:bold;cursor:pointer;overflow:hidden}
+.center{text-align:center}
+.foot{text-align:center;font-size:15px;margin-top:10px}
+/* hub */
+.search{width:100%;font:inherit;font-size:22px;padding:10px;border:3px solid #000;margin:0 0 10px;background:#fff}
+.chips{margin:0 0 10px;text-align:center}
+.chip{display:inline-block;border:2px solid #000;background:#fff;font:inherit;font-size:19px;letter-spacing:1px;text-transform:uppercase;padding:7px 12px;margin:0 3px 7px;cursor:pointer}
+.chip.on{background:#000;color:#fff}
+.cards{text-align:center;font-size:0}
+.cards a.card{display:inline-block;vertical-align:top;width:31.4%;margin:0 .6% 10px;min-height:128px;border:3px solid #000;background:#fff;padding:6px 6px 8px;text-decoration:none;color:#000;text-align:center;box-shadow:4px 4px 0 #000;font-size:16px}
+.card .num{display:inline-block;float:left;border:2px solid #000;font-size:13px;padding:0 5px}
+.card .ic{clear:both;font-size:30px;line-height:1.2;padding-top:6px}
+.card h2{margin:4px 0 0;font-size:17px;line-height:1.15}
+.card p{display:none}
+.card .tag{display:none}
+.new{background:#000;color:#fff}
+</style></head><body><div class="wrap"><div class="top"><a class="back" href="index.html">&larr; All games</a><h1>Minesweeper</h1><p>Classic 9x9 with a Flag mode for tapping.</p></div><div id="app"></div><div class="foot">Paperwhite Arcade</div></div><script>var KG = {
+  $: function (id) { return document.getElementById(id); },
+  el: function (tag, cls, text, parent) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined && text !== null) e.appendChild(document.createTextNode(text));
+    if (parent) parent.appendChild(e);
+    return e;
+  },
+  btn: function (text, fn, parent, cls) {
+    var b = KG.el('span', 'btn' + (cls ? ' ' + cls : ''), text, parent);
+    b.onclick = fn;
+    return b;
+  },
+  get: function (k, d) { try { var v = window.localStorage.getItem('kg_' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set: function (k, v) { try { window.localStorage.setItem('kg_' + k, JSON.stringify(v)); } catch (e) {} },
+  rand: function (n) { return Math.floor(Math.random() * n); },
+  shuffle: function (a) { for (var i = a.length - 1; i > 0; i--) { var j = KG.rand(i + 1), t = a[i]; a[i] = a[j]; a[j] = t; } return a; },
+  width: function (max) {
+    var w = window.innerWidth || document.documentElement.clientWidth || 600;
+    return Math.min(w - 44, max || 640);
+  },
+  clear: function (e) { while (e.firstChild) e.removeChild(e.firstChild); },
+  setOn: function (list, i) { for (var k = 0; k < list.length; k++) list[k].className = 'btn' + (k === i ? ' on' : ''); },
+  // grid table: returns {t:table, c:[[td]]}
+  grid: function (rows, cols, size, parent, onTap) {
+    var t = KG.el('table', 'grid', null, parent), c = [], r, k;
+    for (r = 0; r < rows; r++) {
+      var tr = document.createElement('tr'); c[r] = [];
+      for (k = 0; k < cols; k++) {
+        var td = document.createElement('td');
+        td.style.width = size + 'px'; td.style.height = size + 'px';
+        td.style.fontSize = Math.floor(size * 0.55) + 'px';
+        (function (rr, kk) { td.onclick = function () { onTap(rr, kk); }; })(r, k);
+        tr.appendChild(td); c[r][k] = td;
+      }
+      t.appendChild(tr);
+    }
+    return { t: t, c: c };
+  },
+  suit: function (s, px) {
+    var P = { H: 'M10 18C2 12 1 8 1 5.5A4.5 4.5 0 0 1 10 4A4.5 4.5 0 0 1 19 5.5C19 8 18 12 10 18Z', D: 'M10 1L18 10L10 19L2 10Z', S: 'M10 1C16 7 19 10 19 13A4.5 4.5 0 0 1 11 15.5L13 19H7L9 15.5A4.5 4.5 0 0 1 1 13C1 10 4 7 10 1Z', C: 'M10 0.5a4.5 4.5 0 1 0 0.01 0ZM4.5 7.5a4.5 4.5 0 1 0 0.01 0ZM15.5 7.5a4.5 4.5 0 1 0 0.01 0ZM9 10L7.5 19H12.5L11 10Z' };
+    var red = (s === 'H' || s === 'D');
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="' + px + '" height="' + px + '" viewBox="0 0 20 20"><path d="' + P[s] + '" fill="' + (red ? '#fff' : '#000') + '" stroke="#000" stroke-width="' + (red ? 1.6 : 0.5) + '"/></svg>';
+  },
+  card: function (rank, s, w) {
+    var h = Math.floor(w * 1.4);
+    return '<div style="display:inline-block;vertical-align:top;margin:3px;width:' + w + 'px;height:' + h + 'px;border:3px solid #000;background:#fff;text-align:center;line-height:1"><div style="font-size:' + Math.floor(w * 0.36) + 'px;margin-top:4px">' + rank + '</div><div style="margin-top:' + Math.floor(w * 0.08) + 'px">' + KG.suit(s, Math.floor(w * 0.5)) + '</div></div>';
+  },
+  cardBack: function (w) {
+    var h = Math.floor(w * 1.4);
+    return '<div style="display:inline-block;vertical-align:top;margin:3px;width:' + w + 'px;height:' + h + 'px;border:3px solid #000;background:#000;color:#fff;text-align:center;line-height:' + h + 'px;font-size:' + Math.floor(w * 0.5) + 'px">?</div>';
+  },
+  sys: function (name, def, parent, opts, onPick) {
+    // option row helper: opts array of labels; remembers choice
+    var cur = KG.get(name, def), btns = [], i;
+    for (i = 0; i < opts.length; i++) (function (i) {
+      btns[i] = KG.btn(opts[i], function () { KG.set(name, i); KG.setOn(btns, i); onPick(i); }, parent);
+    })(i);
+    KG.setOn(btns, cur);
+    return cur;
+  }
+};
+</script><script>var app=KG.$("app");var N = 9, M = 10, mode = 0, g, open, flag, over, first, cells, sz;
+var panel = KG.el('div', 'panel', null, app);
+var r1 = KG.el('div', 'row', null, panel); var lc = KG.el('div', 'l', '', r1); var rr1 = KG.el('div', 'r', null, r1);
+var bm = [KG.btn('Dig', function () { mode = 0; KG.setOn(bm, 0); }, rr1), KG.btn('Flag', function () { mode = 1; KG.setOn(bm, 1); }, rr1)];
+var msg = KG.el('div', 'msg', 'Tap squares to dig. Use Flag mode to mark mines.', panel), box = KG.el('div', 'center', null, panel), nb = KG.el('div', 'center', null, panel); nb.style.marginTop = '10px';
+KG.btn('New game', reset, nb, 'on');
+function nbrs(r, c){ var o = [], a, b; for (a = -1; a <= 1; a++) for (b = -1; b <= 1; b++) if ((a || b) && r + a >= 0 && r + a < N && c + b >= 0 && c + b < N) o.push([r + a, c + b]); return o; }
+function reset(){
+  var r, c; g = []; open = []; flag = []; over = false; first = true; mode = 0; KG.setOn(bm, 0);
+  for (r = 0; r < N; r++) { g[r] = []; open[r] = []; flag[r] = []; for (c = 0; c < N; c++) { g[r][c] = 0; open[r][c] = false; flag[r][c] = false; } }
+  sz = Math.floor(KG.width(640) / N); KG.clear(box); cells = KG.grid(N, N, sz, box, tap); draw();
+}
+function place(sr, sc){
+  var n = 0, r, c; while (n < M) { r = KG.rand(N); c = KG.rand(N); if (g[r][c] === -1 || (Math.abs(r - sr) < 2 && Math.abs(c - sc) < 2)) continue; g[r][c] = -1; n++; }
+  for (r = 0; r < N; r++) for (c = 0; c < N; c++) if (g[r][c] !== -1) { var k = 0, ns = nbrs(r, c); for (var i = 0; i < ns.length; i++) if (g[ns[i][0]][ns[i][1]] === -1) k++; g[r][c] = k; }
+}
+function reveal(r, c){
+  if (open[r][c] || flag[r][c]) return; open[r][c] = true;
+  if (g[r][c] === 0) { var ns = nbrs(r, c); for (var i = 0; i < ns.length; i++) reveal(ns[i][0], ns[i][1]); }
+}
+function tap(r, c){
+  if (over) return;
+  if (mode === 1) { if (!open[r][c]) flag[r][c] = !flag[r][c]; draw(); return; }
+  if (flag[r][c] || open[r][c]) return;
+  if (first) { place(r, c); first = false; }
+  if (g[r][c] === -1) { over = 'lose'; open[r][c] = true; draw(); return; }
+  reveal(r, c); var left = 0, a, b; for (a = 0; a < N; a++) for (b = 0; b < N; b++) if (!open[a][b] && g[a][b] !== -1) left++;
+  if (!left) over = 'win'; draw();
+}
+function draw(){
+  var r, c, f = 0, t;
+  for (r = 0; r < N; r++) for (c = 0; c < N; c++) {
+    t = cells.c[r][c]; if (flag[r][c]) f++;
+    if (open[r][c]) { t.style.background = '#fff'; t.style.color = '#000'; t.innerHTML = g[r][c] === -1 ? '*' : (g[r][c] || ''); if (g[r][c] === -1) { t.style.background = '#000'; t.style.color = '#fff'; } }
+    else if (over === 'lose' && g[r][c] === -1) { t.style.background = '#fff'; t.style.color = '#000'; t.innerHTML = flag[r][c] ? 'X' : '*'; }
+    else { t.style.background = '#000'; t.style.color = '#fff'; t.innerHTML = flag[r][c] ? 'F' : ''; if (!flag[r][c]) t.style.background = '#bbb'; }
+  }
+  KG.clear(lc); lc.appendChild(document.createTextNode('Mines left: ' + (M - f)));
+  KG.clear(msg); msg.appendChild(document.createTextNode(over === 'win' ? 'Cleared! You win!' : over === 'lose' ? 'BOOM! Try again.' : 'Tap to dig. Flag mode marks mines (F).'));
+}
+reset();
+</script></body></html>
